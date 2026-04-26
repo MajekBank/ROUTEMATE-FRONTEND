@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-const API_URL = "https://routemate-backend-579d6c46f-emmanuelademolabank-7265s-projects.vercel.app/api";
+const API_URL = "https://routemate-backend-pi.vercel.app/api";
 const FW_PUBLIC_KEY = "FLWPUBK-eb6ed3b9b84191c03601921ea5c4c723-X";
 
 // ─── THEME ────────────────────────────────────────────────────────────────────
