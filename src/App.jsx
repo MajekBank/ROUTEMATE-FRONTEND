@@ -180,7 +180,7 @@ const NAV = [
   {id:"send",   label:"Send",    icon:"📦"},
   {id:"track",  label:"Track",   icon:"📍"},
   {id:"wallet", label:"Wallet",  icon:"💳"},
-  chat:   <ChatView   user={auth.user} />,
+  
   {id:"chat",   label:"Chat",    icon:"💬"},
   {id:"admin",  label:"Admin",   icon:"⚙️"},
 ];
