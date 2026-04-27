@@ -15,6 +15,25 @@ const T = {
   success:"#10B981", danger:"#EF4444",
 };
 
+
+// ─── CLOUDINARY UPLOAD ────────────────────────────────────────────────────────
+const CLOUDINARY_CLOUD = "dwqf2qy8l";
+const CLOUDINARY_PRESET = "routemate_uploads";
+
+const uploadToCloudinary = async (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", CLOUDINARY_PRESET);
+  formData.append("folder", "routemate");
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+    method: "POST",
+    body: formData,
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.secure_url;
+};
+
 // ─── API HELPER ───────────────────────────────────────────────────────────────
 const api = async (endpoint, options = {}) => {
   const token = localStorage.getItem("rm_token");
@@ -693,6 +712,81 @@ function FindView({ user, pay, fwReady }) {
   );
 }
 
+
+// ─── PHOTO UPLOADER COMPONENT ─────────────────────────────────────────────────
+function PhotoUploader({ onUpload, label="Upload Photos", multiple=false }) {
+  const [uploading, setUploading] = useState(false);
+  const [uploaded, setUploaded]   = useState([]);
+  const [error, setError]         = useState("");
+  const inputRef = useState(null);
+
+  const handleFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    setUploading(true); setError("");
+    try {
+      const urls = [];
+      for (const file of Array.from(files)) {
+        if (file.size > 10 * 1024 * 1024) { setError("File too large. Max 10MB."); continue; }
+        const url = await uploadToCloudinary(file);
+        urls.push(url);
+      }
+      const all = multiple ? [...uploaded, ...urls] : urls;
+      setUploaded(all);
+      onUpload(multiple ? all : urls[0]);
+    } catch(e) { setError(e.message || "Upload failed. Try again."); }
+    finally { setUploading(false); }
+  };
+
+  return (
+    <div>
+      <div style={{ fontSize:12, color:T.textMuted, marginBottom:8 }}>{label}</div>
+      
+      {/* Upload area */}
+      <label style={{ display:"block", border:`2px dashed ${uploading?T.teal:uploaded.length>0?T.success:T.border}`, borderRadius:12, padding:"20px", textAlign:"center", background:T.surfaceAlt, cursor:"pointer", transition:"all 0.2s" }}>
+        <input type="file" accept="image/*" multiple={multiple} style={{ display:"none" }}
+          onChange={e => handleFiles(e.target.files)}
+          capture="environment" />
+        {uploading ? (
+          <>
+            <div style={{ fontSize:28, marginBottom:6 }}>⏳</div>
+            <div style={{ fontSize:13, color:T.teal }}>Uploading...</div>
+          </>
+        ) : uploaded.length > 0 ? (
+          <>
+            <div style={{ fontSize:28, marginBottom:6 }}>✅</div>
+            <div style={{ fontSize:13, color:T.success }}>{uploaded.length} photo{uploaded.length>1?"s":""} uploaded</div>
+            <div style={{ fontSize:11, color:T.textMuted, marginTop:2 }}>Tap to add more</div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize:28, marginBottom:6 }}>📷</div>
+            <div style={{ fontSize:13, color:T.textMuted }}>Tap to take photo or upload</div>
+            <div style={{ fontSize:11, color:T.textDim, marginTop:2 }}>JPG, PNG up to 10MB</div>
+          </>
+        )}
+      </label>
+
+      {/* Preview uploaded images */}
+      {uploaded.length > 0 && (
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:10 }}>
+          {uploaded.map((url, i) => (
+            <div key={i} style={{ position:"relative" }}>
+              <img src={url} alt="" style={{ width:70, height:70, borderRadius:8, objectFit:"cover", border:`1px solid ${T.border}` }} />
+              <button onClick={() => {
+                const newUrls = uploaded.filter((_,idx) => idx !== i);
+                setUploaded(newUrls);
+                onUpload(multiple ? newUrls : newUrls[0] || "");
+              }} style={{ position:"absolute", top:-6, right:-6, width:20, height:20, borderRadius:"50%", background:T.danger, border:"none", color:"#fff", fontSize:11, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && <div style={{ fontSize:12, color:T.danger, marginTop:6 }}>⚠️ {error}</div>}
+    </div>
+  );
+}
+
 // ─── SEND VIEW ────────────────────────────────────────────────────────────────
 function SendView({ user }) {
   const [step, setStep]   = useState(1);
@@ -762,11 +856,7 @@ function SendView({ user }) {
             ))}
             <input type="date" value={form.deadline} onChange={e=>set("deadline",e.target.value)} style={inp} />
             <textarea placeholder="Describe the package contents and any handling notes…" value={form.description} onChange={e=>set("description",e.target.value)} style={{ ...inp, height:90, resize:"none" }} />
-            <div style={{ border:`2px dashed ${T.border}`, borderRadius:12, padding:20, textAlign:"center", background:T.surfaceAlt }}>
-              <div style={{ fontSize:28 }}>📷</div>
-              <div style={{ fontSize:13, color:T.textMuted, marginTop:4 }}>Upload Package Photos</div>
-              <div style={{ fontSize:11, color:T.textDim, marginTop:2 }}>Coming soon — multiple images increase trust</div>
-            </div>
+            <PhotoUploader onUpload={(urls) => set("photos", urls)} label="Upload Package Photos" multiple={true} />
           </div>
         )}
         {step===3 && (
