@@ -180,7 +180,6 @@ const NAV = [
   {id:"send",   label:"Send",    icon:"📦"},
   {id:"track",  label:"Track",   icon:"📍"},
   {id:"wallet", label:"Wallet",  icon:"💳"},
-  
   {id:"chat",   label:"Chat",    icon:"💬"},
   {id:"admin",  label:"Admin",   icon:"⚙️"},
 ];
@@ -1227,6 +1226,211 @@ function AdminView({ user, fwReady }) {
   );
 }
 
+
+// ─── CHAT VIEW ────────────────────────────────────────────────────────────────
+function ChatView({ user }) {
+  const pusher = usePusher();
+  const [conversations, setConversations] = useState([]);
+  const [activeChat, setActiveChat]       = useState(null);
+  const [messages, setMessages]           = useState([]);
+  const [msgText, setMsgText]             = useState("");
+  const [offerAmt, setOfferAmt]           = useState("");
+  const [showOffer, setShowOffer]         = useState(false);
+  const [loading, setLoading]             = useState(true);
+  const [sending, setSending]             = useState(false);
+  const [unread, setUnread]               = useState(0);
+  const bottomRef = useState(null);
+
+  // Load conversations
+  useEffect(() => {
+    api("/chat/conversations")
+      .then(d => setConversations(d.conversations || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+    api("/chat/unread")
+      .then(d => setUnread(d.count || 0))
+      .catch(() => {});
+  }, []);
+
+  // Load messages when chat opens
+  useEffect(() => {
+    if (!activeChat) return;
+    const otherId = activeChat.sender?._id === user._id ? activeChat.receiver?._id : activeChat.sender?._id;
+    api(`/chat/direct/${otherId}`)
+      .then(d => setMessages(d.messages || []))
+      .catch(() => {});
+  }, [activeChat]);
+
+  // Subscribe to Pusher channel
+  useEffect(() => {
+    if (!pusher || !activeChat) return;
+    const otherId = activeChat.sender?._id === user._id ? activeChat.receiver?._id : activeChat.sender?._id;
+    const channelName = [user._id, otherId].sort().join("-");
+    const channel = pusher.subscribe(`chat-${channelName}`);
+    channel.bind("new-message", (data) => {
+      setMessages(prev => [...prev, data]);
+    });
+    channel.bind("offer-updated", (data) => {
+      setMessages(prev => prev.map(m => m._id === data.messageId ? { ...m, offerStatus: data.offerStatus } : m));
+    });
+    return () => pusher.unsubscribe(`chat-${channelName}`);
+  }, [pusher, activeChat]);
+
+  const sendMessage = async (type = "text", amount = null) => {
+    if (!msgText.trim() && !amount) return;
+    const otherId = activeChat.sender?._id === user._id ? activeChat.receiver?._id : activeChat.sender?._id;
+    setSending(true);
+    try {
+      await api("/chat/send", { method: "POST", body: {
+        receiverId: otherId,
+        text: amount ? `Offer: ₦${Number(amount).toLocaleString()}` : msgText.trim(),
+        type, offerAmount: amount || null,
+      }});
+      setMsgText(""); setOfferAmt(""); setShowOffer(false);
+    } catch(e) { alert(e.message); }
+    finally { setSending(false); }
+  };
+
+  const respondOffer = async (messageId, status) => {
+    try {
+      await api(`/chat/offer/${messageId}`, { method: "PATCH", body: { status } });
+    } catch(e) { alert(e.message); }
+  };
+
+  const otherUser = (conv) => conv.sender?._id === user._id ? conv.receiver : conv.sender;
+
+  // Show chat messages
+  if (activeChat) {
+    const other = otherUser(activeChat);
+    const initials = other?.name?.split(" ").map(n=>n[0]).join("").slice(0,2)||"?";
+    return (
+      <div style={{ display:"flex", flexDirection:"column", height:"calc(100vh - 160px)" }}>
+        {/* Header */}
+        <div style={{ display:"flex", gap:12, alignItems:"center", paddingBottom:14, borderBottom:`1px solid ${T.border}`, marginBottom:14 }}>
+          <button onClick={() => setActiveChat(null)} style={{ background:"none", border:"none", color:T.textMuted, fontSize:20, cursor:"pointer", padding:0 }}>←</button>
+          <Avatar initials={initials} color={T.teal} size={38} />
+          <div>
+            <div style={{ fontWeight:700, color:T.text, fontSize:15 }}>{other?.name}</div>
+            <div style={{ fontSize:11, color:T.teal }}>● Online</div>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:10, paddingBottom:8 }}>
+          {messages.length === 0 && (
+            <div style={{ textAlign:"center", padding:"30px 0", color:T.textMuted, fontSize:13 }}>
+              No messages yet. Start the conversation! 👋
+            </div>
+          )}
+          {messages.map((m, i) => {
+            const isMe = m.sender?._id === user._id || m.sender === user._id;
+            return (
+              <div key={m._id || i} style={{ display:"flex", justifyContent:isMe?"flex-end":"flex-start" }}>
+                <div style={{ maxWidth:"78%", padding:"10px 14px", fontSize:14, lineHeight:1.4,
+                  borderRadius:isMe?"16px 16px 4px 16px":"16px 16px 16px 4px",
+                  background:isMe?`linear-gradient(135deg,${T.accent},#ff8c55)`:T.surfaceAlt,
+                  color:isMe?"#fff":T.text }}>
+                  {m.text}
+                  {/* Offer actions */}
+                  {m.type==="offer" && m.offerStatus==="pending" && !isMe && (
+                    <div style={{ display:"flex", gap:8, marginTop:10 }}>
+                      <button onClick={() => respondOffer(m._id, "accepted")} style={{ flex:1, padding:"6px 0", borderRadius:8, border:"none", background:T.teal, color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>✓ Accept</button>
+                      <button onClick={() => respondOffer(m._id, "rejected")} style={{ flex:1, padding:"6px 0", borderRadius:8, border:`1px solid ${T.danger}`, background:"transparent", color:T.danger, fontSize:11, fontWeight:700, cursor:"pointer" }}>✕ Reject</button>
+                    </div>
+                  )}
+                  {m.type==="offer" && m.offerStatus && m.offerStatus!=="pending" && (
+                    <div style={{ fontSize:11, marginTop:6, color:isMe?"rgba(255,255,255,0.7)":T.textMuted, fontStyle:"italic" }}>
+                      Offer {m.offerStatus} ✓
+                    </div>
+                  )}
+                  <div style={{ fontSize:10, color:isMe?"rgba(255,255,255,0.5)":T.textMuted, marginTop:4, textAlign:"right" }}>
+                    {new Date(m.createdAt).toLocaleTimeString("en", { hour:"2-digit", minute:"2-digit" })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Offer input */}
+        {showOffer && (
+          <div style={{ padding:"10px 0", display:"flex", gap:8 }}>
+            <div style={{ flex:1, display:"flex", alignItems:"center", background:T.surfaceAlt, border:`1px solid ${T.accent}40`, borderRadius:12, overflow:"hidden" }}>
+              <span style={{ padding:"0 12px", color:T.textMuted, fontWeight:700 }}>₦</span>
+              <input value={offerAmt} onChange={e => setOfferAmt(e.target.value.replace(/\D/g,""))}
+                placeholder="Enter offer amount"
+                style={{ flex:1, padding:"12px 8px", background:"none", border:"none", outline:"none", color:T.text, fontSize:14 }} />
+            </div>
+            <button onClick={() => sendMessage("offer", offerAmt)} disabled={!offerAmt||sending}
+              style={{ padding:"0 16px", borderRadius:12, border:"none", background:`linear-gradient(135deg,${T.accent},#ff8c55)`, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+              Send
+            </button>
+          </div>
+        )}
+
+        {/* Quick replies */}
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", paddingBottom:8 }}>
+          {["👍 Agreed!", "📦 Ready to pick up", "🚀 On my way", "✅ Delivered"].map(q => (
+            <button key={q} onClick={() => { setMsgText(q); }} style={{ padding:"5px 10px", borderRadius:16, border:`1px solid ${T.border}`, background:T.surfaceAlt, color:T.textMuted, fontSize:11, cursor:"pointer" }}>{q}</button>
+          ))}
+        </div>
+
+        {/* Input */}
+        <div style={{ display:"flex", gap:8, paddingTop:8, borderTop:`1px solid ${T.border}` }}>
+          <button onClick={() => setShowOffer(v => !v)} style={{ width:42, height:42, borderRadius:10, border:`1px solid ${T.accent}40`, background:showOffer?T.accentSoft:"transparent", color:T.accent, fontSize:18, cursor:"pointer", flexShrink:0 }}>₦</button>
+          <input value={msgText} onChange={e => setMsgText(e.target.value)}
+            onKeyDown={e => e.key==="Enter" && sendMessage()}
+            placeholder="Type a message..."
+            style={{ flex:1, padding:"11px 16px", borderRadius:12, border:`1px solid ${T.border}`, background:T.surfaceAlt, color:T.text, fontSize:14, outline:"none" }} />
+          <button onClick={() => sendMessage()} disabled={!msgText.trim()||sending}
+            style={{ width:42, height:42, borderRadius:12, border:"none", background:`linear-gradient(135deg,${T.accent},#ff8c55)`, color:"#fff", fontSize:18, cursor:"pointer", flexShrink:0, opacity:(!msgText.trim()||sending)?0.5:1 }}>↑</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Conversations list
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div style={{ fontWeight:800, fontSize:20, color:T.text }}>Messages</div>
+        {unread > 0 && <Badge text={`${unread} unread`} color={T.accent} />}
+      </div>
+
+      {loading ? <Spinner /> : conversations.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"50px 20px" }}>
+          <div style={{ fontSize:50, marginBottom:14 }}>💬</div>
+          <div style={{ fontWeight:700, color:T.text, fontSize:16, marginBottom:8 }}>No conversations yet</div>
+          <div style={{ fontSize:13, color:T.textMuted }}>When you book a traveler or receive a booking request, your chat will appear here.</div>
+        </div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+          {conversations.map((conv, i) => {
+            const other = otherUser(conv);
+            const initials = other?.name?.split(" ").map(n=>n[0]).join("").slice(0,2)||"?";
+            const isUnread = !conv.isRead && conv.receiver?._id === user._id;
+            return (
+              <div key={i} onClick={() => setActiveChat(conv)} style={{ display:"flex", gap:14, alignItems:"center", padding:"14px 16px", background:isUnread?T.accentSoft:T.surface, border:`1px solid ${isUnread?T.accent:T.border}`, borderRadius:14, cursor:"pointer", transition:"all 0.2s" }}>
+                <Avatar initials={initials} color={T.teal} size={46} />
+                <div style={{ flex:1, overflow:"hidden" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                    <span style={{ fontWeight:700, color:T.text, fontSize:14 }}>{other?.name}</span>
+                    <span style={{ fontSize:11, color:T.textMuted }}>{new Date(conv.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div style={{ fontSize:13, color:isUnread?T.text:T.textMuted, fontWeight:isUnread?600:400, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {conv.sender?._id === user._id ? "You: " : ""}{conv.text}
+                  </div>
+                </div>
+                {isUnread && <div style={{ width:10, height:10, borderRadius:"50%", background:T.accent, flexShrink:0 }} />}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   const auth = useAuth();
@@ -1254,6 +1458,7 @@ export default function App() {
     send:   <SendView   user={auth.user} />,
     track:  <TrackView  user={auth.user} />,
     wallet: <WalletView user={auth.user} pay={pay} fwReady={fwReady} refreshUser={refreshUser} />,
+    chat:   <ChatView   user={auth.user} />,
     admin:  <AdminView  user={auth.user} fwReady={fwReady} />,
   };
 
