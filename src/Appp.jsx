@@ -18,13 +18,13 @@ const T = {
 
 // ─── CLOUDINARY UPLOAD ────────────────────────────────────────────────────────
 const CLOUDINARY_CLOUD = "dwqf2qy8l";
-const CLOUDINARY_PRESET = "routemate_uploads";
+const CLOUDINARY_PRESET = "cargopadi_uploads";
 
 const uploadToCloudinary = async (file) => {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("upload_preset", CLOUDINARY_PRESET);
-  formData.append("folder", "routemate");
+  formData.append("folder", "cargopadi");
   const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
     method: "POST",
     body: formData,
@@ -68,8 +68,8 @@ function useFlutterwave() {
       public_key: FW_PUBLIC_KEY,
       tx_ref, amount, currency,
       payment_options: "card,banktransfer,ussd,account,mobilemoney",
-      customer: customer || { email:"user@routemate.co", phone_number:"+2348100000000", name:"Routemate User" },
-      customizations: { title:"Routemate", description, logo:"https://placehold.co/60x60/FF6B35/ffffff?text=RM" },
+      customer: customer || { email:"user@cargopadi.co", phone_number:"+2348100000000", name:"CargoPadi User" },
+      customizations: { title:"CargoPadi", description, logo:"https://placehold.co/60x60/FF6B35/ffffff?text=RM" },
       meta: { ...meta, tx_ref },
       callback: (res) => {
         if (res.status==="successful"||res.status==="completed") onSuccess?.({ ...res, tx_ref });
@@ -208,9 +208,9 @@ function AuthScreen({ auth }) {
         <div style={{ textAlign:"center", marginBottom:32 }}>
           <div style={{ width:64, height:64, borderRadius:18, background:`linear-gradient(135deg,${T.accent},#ff8c55)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, margin:"0 auto 14px" }}>📦</div>
           <div style={{ fontSize:28, fontWeight:900, color:T.text }}>
-            <span style={{ color:T.accent }}>Route</span>mate
+            <span style={{ color:T.accent }}>Cargo</span>Padi
           </div>
-          <div style={{ fontSize:13, color:T.textMuted, marginTop:4 }}>Peer-to-peer delivery platform</div>
+          <div style={{ fontSize:13, color:T.textMuted, marginTop:4 }}>Your trusted delivery padi 🚀</div>
         </div>
 
         <div style={{ background:T.surface, border:`1px solid ${T.border}`, borderRadius:20, padding:"28px 24px" }}>
@@ -250,7 +250,7 @@ function AuthScreen({ auth }) {
             )}
 
             <Btn onClick={submit} loading={loading}>
-              {mode==="login" ? "Log In to Routemate" : "Create Account"}
+              {mode==="login" ? "Log In to CargoPadi" : "Create Account"}
             </Btn>
           </div>
 
@@ -283,9 +283,9 @@ function BookModal({ route, pkg, onClose, onSuccess, pay, fwReady }) {
     setLoading(true);
     pay({
       amount: total, currency: "NGN",
-      description: `Routemate Escrow · ${label}`,
+      description: `CargoPadi Escrow · ${label}`,
       meta: { type: "escrow" },
-      customer: { email: "user@routemate.co", phone_number: "+2348100000000", name: "Routemate User" },
+      customer: { email: "user@cargopadi.co", phone_number: "+2348100000000", name: "CargoPadi User" },
       onSuccess: (res) => { setLoading(false); setDone(res); onSuccess && onSuccess(res); },
       onClose: () => setLoading(false),
     });
@@ -374,7 +374,7 @@ function HomeView({ user, setNav, pay, fwReady }) {
       {/* Hero */}
       <div style={{ background:"linear-gradient(135deg,#0d1e35,#1a1030)", borderRadius:20, padding:"28px 24px", position:"relative", overflow:"hidden", border:`1px solid ${T.border}` }}>
         <div style={{ position:"absolute", top:-50, right:-50, width:200, height:200, borderRadius:"50%", background:`${T.accent}12`, filter:"blur(50px)" }} />
-        <div style={{ fontSize:13, color:T.textMuted, marginBottom:4, letterSpacing:"0.06em", fontWeight:600 }}>ROUTEMATE</div>
+        <div style={{ fontSize:13, color:T.textMuted, marginBottom:4, letterSpacing:"0.06em", fontWeight:600 }}>CARGOPADI</div>
         <div style={{ fontSize:26, fontWeight:900, color:T.text, lineHeight:1.2, marginBottom:8 }}>
           Welcome back,<br /><span style={{ color:T.accent }}>{user?.name?.split(" ")[0]}! 👋</span>
         </div>
@@ -1091,7 +1091,7 @@ function WalletView({ user, pay, fwReady, refreshUser }) {
     const amt = Number(amount);
     if (!amt||amt<100) return;
     pay({
-      amount:amt, currency:"NGN", description:"Routemate wallet top-up",
+      amount:amt, currency:"NGN", description:"CargoPadi wallet top-up",
       customer:{ email:user.email, phone_number:user.phone, name:user.name },
       onSuccess: async (res) => {
         setProcessing(true);
@@ -1319,112 +1319,102 @@ function AdminView({ user, fwReady }) {
 
 // ─── CHAT VIEW ────────────────────────────────────────────────────────────────
 function ChatView({ user }) {
-  const pusher = usePusher();
   const [conversations, setConversations] = useState([]);
-  const [activeChat, setActiveChat] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [msgText, setMsgText] = useState("");
-  const [offerAmt, setOfferAmt] = useState("");
-  const [showOffer, setShowOffer] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [unread, setUnread] = useState(0);
-  const [error, setError] = useState(null);
+  const [activeChat, setActiveChat]       = useState(null);
+  const [messages, setMessages]           = useState([]);
+  const [msgText, setMsgText]             = useState("");
+  const [loading, setLoading]             = useState(true);
+  const [sending, setSending]             = useState(false);
+  const [offerAmt, setOfferAmt]           = useState("");
+  const [showOffer, setShowOffer]         = useState(false);
 
   useEffect(() => {
-    setLoading(true);
     api("/chat/conversations")
-      .then(d => { setConversations(d.conversations || []); setError(null); })
-      .catch(e => { setConversations([]); setError(e.message); })
+      .then(d => setConversations(d.conversations || []))
+      .catch(() => setConversations([]))
       .finally(() => setLoading(false));
-    api("/chat/unread")
-      .then(d => setUnread(d.count || 0))
-      .catch(() => setUnread(0));
   }, []);
 
   useEffect(() => {
     if (!activeChat) return;
-    const otherId = activeChat.sender?._id === user._id ? activeChat.receiver?._id : activeChat.sender?._id;
+    const otherId = activeChat.sender?._id === user._id
+      ? activeChat.receiver?._id
+      : activeChat.sender?._id;
     if (!otherId) return;
     api(`/chat/direct/${otherId}`)
       .then(d => setMessages(d.messages || []))
       .catch(() => setMessages([]));
   }, [activeChat]);
 
-  useEffect(() => {
-    if (!pusher || !activeChat) return;
-    try {
-      const otherId = activeChat.sender?._id === user._id ? activeChat.receiver?._id : activeChat.sender?._id;
-      if (!otherId) return;
-      const channelName = [user._id, otherId].sort().join("-");
-      const channel = pusher.subscribe(`chat-${channelName}`);
-      channel.bind("new-message", (data) => setMessages(prev => [...prev, data]));
-      channel.bind("offer-updated", (data) => {
-        setMessages(prev => prev.map(m => m._id === data.messageId ? { ...m, offerStatus: data.offerStatus } : m));
-      });
-      return () => { try { pusher.unsubscribe(`chat-${channelName}`); } catch(e) {} };
-    } catch(e) {}
-  }, [pusher, activeChat]);
-
   const sendMessage = async (type = "text", amount = null) => {
     if (!msgText.trim() && !amount) return;
-    const otherId = activeChat?.sender?._id === user._id ? activeChat?.receiver?._id : activeChat?.sender?._id;
+    const otherId = activeChat?.sender?._id === user._id
+      ? activeChat?.receiver?._id
+      : activeChat?.sender?._id;
     if (!otherId) return;
     setSending(true);
     try {
-      await api("/chat/send", { method: "POST", body: {
-        receiverId: otherId,
-        text: amount ? `Offer: ₦${Number(amount).toLocaleString()}` : msgText.trim(),
-        type, offerAmount: amount || null,
-      }});
-      setMsgText(""); setOfferAmt(""); setShowOffer(false);
-    } catch(e) { alert(e.message); }
-    finally { setSending(false); }
+      const res = await api("/chat/send", {
+        method: "POST",
+        body: {
+          receiverId: otherId,
+          text: amount ? `Offer: ₦${Number(amount).toLocaleString()}` : msgText.trim(),
+          type,
+          offerAmount: amount || null,
+        }
+      });
+      setMessages(prev => [...prev, res.message]);
+      setMsgText("");
+      setOfferAmt("");
+      setShowOffer(false);
+    } catch(e) {
+      alert(e.message);
+    } finally {
+      setSending(false);
+    }
   };
 
-  const respondOffer = async (messageId, status) => {
-    try { await api(`/chat/offer/${messageId}`, { method: "PATCH", body: { status } }); }
-    catch(e) { alert(e.message); }
+  const otherUser = (conv) => {
+    if (!conv) return null;
+    return conv.sender?._id === user._id ? conv.receiver : conv.sender;
   };
 
-  const otherUser = (conv) => conv?.sender?._id === user._id ? conv?.receiver : conv?.sender;
-
+  // Active chat screen
   if (activeChat) {
     const other = otherUser(activeChat);
-    const initials = other?.name?.split(" ").map(n=>n[0]).join("").slice(0,2)||"?";
+    const initials = other?.name?.split(" ").map(n => n[0]).join("").slice(0, 2) || "?";
     return (
       <div style={{ display:"flex", flexDirection:"column", height:"calc(100vh - 160px)" }}>
+        {/* Header */}
         <div style={{ display:"flex", gap:12, alignItems:"center", paddingBottom:14, borderBottom:`1px solid ${T.border}`, marginBottom:14 }}>
-          <button onClick={() => setActiveChat(null)} style={{ background:"none", border:"none", color:T.textMuted, fontSize:20, cursor:"pointer", padding:0 }}>←</button>
+          <button onClick={() => { setActiveChat(null); setMessages([]); }}
+            style={{ background:"none", border:"none", color:T.textMuted, fontSize:22, cursor:"pointer", padding:0 }}>←</button>
           <Avatar initials={initials} color={T.teal} size={38} />
           <div>
             <div style={{ fontWeight:700, color:T.text, fontSize:15 }}>{other?.name || "User"}</div>
-            <div style={{ fontSize:11, color:T.teal }}>● Online</div>
+            <div style={{ fontSize:11, color:T.teal }}>● Active</div>
           </div>
         </div>
+
+        {/* Messages */}
         <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:10, paddingBottom:8 }}>
           {messages.length === 0 && (
-            <div style={{ textAlign:"center", padding:"30px 0", color:T.textMuted, fontSize:13 }}>No messages yet. Start the conversation! 👋</div>
+            <div style={{ textAlign:"center", padding:"40px 20px", color:T.textMuted, fontSize:13 }}>
+              No messages yet. Say hello! 👋
+            </div>
           )}
           {messages.map((m, i) => {
             const isMe = m.sender?._id === user._id || m.sender === user._id;
             return (
-              <div key={m._id || i} style={{ display:"flex", justifyContent:isMe?"flex-end":"flex-start" }}>
-                <div style={{ maxWidth:"78%", padding:"10px 14px", fontSize:14, lineHeight:1.4,
-                  borderRadius:isMe?"16px 16px 4px 16px":"16px 16px 16px 4px",
-                  background:isMe?`linear-gradient(135deg,${T.accent},#ff8c55)`:T.surfaceAlt,
-                  color:isMe?"#fff":T.text }}>
-                  {m.text}
-                  {m.type==="offer" && m.offerStatus==="pending" && !isMe && (
-                    <div style={{ display:"flex", gap:8, marginTop:10 }}>
-                      <button onClick={() => respondOffer(m._id, "accepted")} style={{ flex:1, padding:"6px 0", borderRadius:8, border:"none", background:T.teal, color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>✓ Accept</button>
-                      <button onClick={() => respondOffer(m._id, "rejected")} style={{ flex:1, padding:"6px 0", borderRadius:8, border:`1px solid ${T.danger}`, background:"transparent", color:T.danger, fontSize:11, fontWeight:700, cursor:"pointer" }}>✕ Reject</button>
-                    </div>
-                  )}
-                  {m.type==="offer" && m.offerStatus && m.offerStatus!=="pending" && (
-                    <div style={{ fontSize:11, marginTop:6, color:isMe?"rgba(255,255,255,0.7)":T.textMuted, fontStyle:"italic" }}>Offer {m.offerStatus} ✓</div>
-                  )}
-                  <div style={{ fontSize:10, color:isMe?"rgba(255,255,255,0.5)":T.textMuted, marginTop:4, textAlign:"right" }}>
+              <div key={m._id || i} style={{ display:"flex", justifyContent: isMe ? "flex-end" : "flex-start" }}>
+                <div style={{
+                  maxWidth:"78%", padding:"10px 14px", fontSize:14, lineHeight:1.5,
+                  borderRadius: isMe ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                  background: isMe ? `linear-gradient(135deg,${T.accent},#ff8c55)` : T.surfaceAlt,
+                  color: isMe ? "#fff" : T.text,
+                }}>
+                  <div>{m.text}</div>
+                  <div style={{ fontSize:10, color: isMe ? "rgba(255,255,255,0.6)" : T.textMuted, marginTop:4, textAlign:"right" }}>
                     {new Date(m.createdAt).toLocaleTimeString("en", { hour:"2-digit", minute:"2-digit" })}
                   </div>
                 </div>
@@ -1432,81 +1422,99 @@ function ChatView({ user }) {
             );
           })}
         </div>
-        {showOffer && (
-          <div style={{ padding:"10px 0", display:"flex", gap:8 }}>
-            <div style={{ flex:1, display:"flex", alignItems:"center", background:T.surfaceAlt, border:`1px solid ${T.accent}40`, borderRadius:12, overflow:"hidden" }}>
-              <span style={{ padding:"0 12px", color:T.textMuted, fontWeight:700 }}>₦</span>
-              <input value={offerAmt} onChange={e => setOfferAmt(e.target.value.replace(/\D/g,""))} placeholder="Enter offer amount"
-                style={{ flex:1, padding:"12px 8px", background:"none", border:"none", outline:"none", color:T.text, fontSize:14 }} />
-            </div>
-            <button onClick={() => sendMessage("offer", offerAmt)} disabled={!offerAmt||sending}
-              style={{ padding:"0 16px", borderRadius:12, border:"none", background:`linear-gradient(135deg,${T.accent},#ff8c55)`, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>Send</button>
-          </div>
-        )}
-        <div style={{ display:"flex", gap:8, flexWrap:"wrap", paddingBottom:8 }}>
-          {["👍 Agreed!", "📦 Ready to pick up", "🚀 On my way", "✅ Delivered"].map(q => (
-            <button key={q} onClick={() => setMsgText(q)} style={{ padding:"5px 10px", borderRadius:16, border:`1px solid ${T.border}`, background:T.surfaceAlt, color:T.textMuted, fontSize:11, cursor:"pointer" }}>{q}</button>
+
+        {/* Quick replies */}
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap", paddingBottom:8 }}>
+          {["👍 Agreed!", "📦 Ready!", "🚀 On my way", "✅ Delivered!"].map(q => (
+            <button key={q} onClick={() => setMsgText(q)}
+              style={{ padding:"5px 10px", borderRadius:16, border:`1px solid ${T.border}`, background:T.surfaceAlt, color:T.textMuted, fontSize:11, cursor:"pointer" }}>
+              {q}
+            </button>
           ))}
         </div>
+
+        {/* Offer input */}
+        {showOffer && (
+          <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+            <div style={{ flex:1, display:"flex", alignItems:"center", background:T.surfaceAlt, border:`1px solid ${T.accent}40`, borderRadius:12, overflow:"hidden" }}>
+              <span style={{ padding:"0 12px", color:T.textMuted, fontWeight:700 }}>₦</span>
+              <input value={offerAmt} onChange={e => setOfferAmt(e.target.value.replace(/[^0-9]/g, ""))}
+                placeholder="Enter offer amount"
+                style={{ flex:1, padding:"12px 8px", background:"none", border:"none", outline:"none", color:T.text, fontSize:14 }} />
+            </div>
+            <button onClick={() => sendMessage("offer", offerAmt)} disabled={!offerAmt || sending}
+              style={{ padding:"0 16px", borderRadius:12, border:"none", background:`linear-gradient(135deg,${T.accent},#ff8c55)`, color:"#fff", fontWeight:700, cursor:"pointer" }}>
+              Send
+            </button>
+          </div>
+        )}
+
+        {/* Input bar */}
         <div style={{ display:"flex", gap:8, paddingTop:8, borderTop:`1px solid ${T.border}` }}>
-          <button onClick={() => setShowOffer(v => !v)} style={{ width:42, height:42, borderRadius:10, border:`1px solid ${T.accent}40`, background:showOffer?T.accentSoft:"transparent", color:T.accent, fontSize:18, cursor:"pointer", flexShrink:0 }}>₦</button>
-          <input value={msgText} onChange={e => setMsgText(e.target.value)} onKeyDown={e => e.key==="Enter" && sendMessage()}
-            placeholder="Type a message..." style={{ flex:1, padding:"11px 16px", borderRadius:12, border:`1px solid ${T.border}`, background:T.surfaceAlt, color:T.text, fontSize:14, outline:"none" }} />
-          <button onClick={() => sendMessage()} disabled={!msgText.trim()||sending}
-            style={{ width:42, height:42, borderRadius:12, border:"none", background:`linear-gradient(135deg,${T.accent},#ff8c55)`, color:"#fff", fontSize:18, cursor:"pointer", flexShrink:0, opacity:(!msgText.trim()||sending)?0.5:1 }}>↑</button>
+          <button onClick={() => setShowOffer(v => !v)}
+            style={{ width:42, height:42, borderRadius:10, border:`1px solid ${T.accent}40`, background: showOffer ? T.accentSoft : "transparent", color:T.accent, fontSize:18, cursor:"pointer", flexShrink:0 }}>
+            ₦
+          </button>
+          <input value={msgText} onChange={e => setMsgText(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && sendMessage()}
+            placeholder="Type a message..."
+            style={{ flex:1, padding:"11px 16px", borderRadius:12, border:`1px solid ${T.border}`, background:T.surfaceAlt, color:T.text, fontSize:14, outline:"none" }} />
+          <button onClick={() => sendMessage()} disabled={!msgText.trim() || sending}
+            style={{ width:42, height:42, borderRadius:12, border:"none", background:`linear-gradient(135deg,${T.accent},#ff8c55)`, color:"#fff", fontSize:20, cursor:"pointer", flexShrink:0, opacity: (!msgText.trim() || sending) ? 0.5 : 1 }}>
+            ↑
+          </button>
         </div>
       </div>
     );
   }
 
+  // Conversations list
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <div style={{ fontWeight:800, fontSize:20, color:T.text }}>Messages</div>
-        {unread > 0 && <Badge text={`${unread} unread`} color={T.accent} />}
-      </div>
-      {loading ? <Spinner /> : (
-        <>
-          {error && (
-            <div style={{ background:`${T.danger}15`, border:`1px solid ${T.danger}30`, borderRadius:12, padding:"12px 16px", fontSize:13, color:T.danger }}>
-              ⚠️ Could not load messages. Please try again.
-            </div>
-          )}
-          {conversations.length === 0 ? (
-            <div style={{ textAlign:"center", padding:"50px 20px" }}>
-              <div style={{ fontSize:50, marginBottom:14 }}>💬</div>
-              <div style={{ fontWeight:700, color:T.text, fontSize:16, marginBottom:8 }}>No conversations yet</div>
-              <div style={{ fontSize:13, color:T.textMuted, lineHeight:1.5 }}>When you book a traveler or receive a booking request your chat will appear here.</div>
-            </div>
-          ) : (
-            <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-              {conversations.map((conv, i) => {
-                const other = otherUser(conv);
-                const initials = other?.name?.split(" ").map(n=>n[0]).join("").slice(0,2)||"?";
-                const isUnread = !conv.isRead && conv.receiver?._id === user._id;
-                return (
-                  <div key={i} onClick={() => setActiveChat(conv)} style={{ display:"flex", gap:14, alignItems:"center", padding:"14px 16px", background:isUnread?T.accentSoft:T.surface, border:`1px solid ${isUnread?T.accent:T.border}`, borderRadius:14, cursor:"pointer" }}>
-                    <Avatar initials={initials} color={T.teal} size={46} />
-                    <div style={{ flex:1, overflow:"hidden" }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-                        <span style={{ fontWeight:700, color:T.text, fontSize:14 }}>{other?.name}</span>
-                        <span style={{ fontSize:11, color:T.textMuted }}>{new Date(conv.createdAt).toLocaleDateString()}</span>
-                      </div>
-                      <div style={{ fontSize:13, color:isUnread?T.text:T.textMuted, fontWeight:isUnread?600:400, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                        {conv.sender?._id === user._id ? "You: " : ""}{conv.text}
-                      </div>
-                    </div>
-                    {isUnread && <div style={{ width:10, height:10, borderRadius:"50%", background:T.accent, flexShrink:0 }} />}
+      <div style={{ fontWeight:800, fontSize:20, color:T.text }}>💬 Messages</div>
+
+      {loading ? <Spinner /> : conversations.length === 0 ? (
+        <div style={{ textAlign:"center", padding:"60px 20px" }}>
+          <div style={{ fontSize:56, marginBottom:16 }}>💬</div>
+          <div style={{ fontWeight:700, color:T.text, fontSize:17, marginBottom:8 }}>No conversations yet</div>
+          <div style={{ fontSize:13, color:T.textMuted, lineHeight:1.6 }}>
+            When you book a traveler or someone books your trip, your conversations will appear here.
+          </div>
+        </div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {conversations.map((conv, i) => {
+            const other = otherUser(conv);
+            const initials = other?.name?.split(" ").map(n => n[0]).join("").slice(0, 2) || "?";
+            const isUnread = !conv.isRead && conv.receiver?._id === user._id;
+            return (
+              <div key={i} onClick={() => setActiveChat(conv)}
+                style={{ display:"flex", gap:14, alignItems:"center", padding:"14px 16px",
+                  background: isUnread ? T.accentSoft : T.surface,
+                  border:`1px solid ${isUnread ? T.accent : T.border}`,
+                  borderRadius:14, cursor:"pointer" }}>
+                <Avatar initials={initials} color={T.teal} size={46} />
+                <div style={{ flex:1, overflow:"hidden" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                    <span style={{ fontWeight:700, color:T.text, fontSize:14 }}>{other?.name}</span>
+                    <span style={{ fontSize:11, color:T.textMuted }}>
+                      {new Date(conv.createdAt).toLocaleDateString()}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </>
+                  <div style={{ fontSize:13, color: isUnread ? T.text : T.textMuted, fontWeight: isUnread ? 600 : 400, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {conv.sender?._id === user._id ? "You: " : ""}{conv.text}
+                  </div>
+                </div>
+                {isUnread && <div style={{ width:10, height:10, borderRadius:"50%", background:T.accent, flexShrink:0 }} />}
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
 }
+
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
@@ -1522,7 +1530,7 @@ export default function App() {
   if (auth.loading) return (
     <div style={{ minHeight:"100vh", background:T.bg, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
       <div style={{ width:64, height:64, borderRadius:18, background:`linear-gradient(135deg,${T.accent},#ff8c55)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📦</div>
-      <div style={{ fontSize:22, fontWeight:900, color:T.text }}><span style={{ color:T.accent }}>Route</span>mate</div>
+      <div style={{ fontSize:22, fontWeight:900, color:T.text }}><span style={{ color:T.accent }}>Cargo</span>Padi</div>
       <Spinner />
     </div>
   );
@@ -1557,7 +1565,7 @@ export default function App() {
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ width:34, height:34, borderRadius:10, background:`linear-gradient(135deg,${T.accent},#ff8c55)`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>📦</div>
             <div style={{ fontWeight:900, fontSize:18, letterSpacing:"-0.5px" }}>
-              <span style={{ color:T.accent }}>Route</span><span style={{ color:T.text }}>mate</span>
+              <span style={{ color:T.accent }}>Cargo</span><span style={{ color:T.text }}>Padi</span>
             </div>
           </div>
           <div style={{ display:"flex", gap:8, alignItems:"center" }}>
